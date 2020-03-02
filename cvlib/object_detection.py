@@ -2,12 +2,15 @@ import cv2
 import os
 import numpy as np
 from .utils import download_file
+import shutil
 
 initialize = True
 net = None
-dest_dir = os.path.expanduser('~') + os.path.sep + '.cvlib' + os.path.sep + 'object_detection' + os.path.sep + 'yolo' + os.path.sep + 'yolov3'
+dest_dir = os.path.expanduser('~') + os.path.sep + '.cvlib' + os.path.sep + \
+    'object_detection' + os.path.sep + 'yolo' + os.path.sep + 'yolov3'
 classes = None
 COLORS = np.random.uniform(0, 255, size=(80, 3))
+
 
 def populate_class_labels():
 
@@ -23,10 +26,11 @@ def populate_class_labels():
 
 
 def get_output_layers(net):
-    
+
     layer_names = net.getLayerNames()
-    
-    output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+
+    output_layers = [layer_names[i[0] - 1]
+                     for i in net.getUnconnectedOutLayers()]
 
     return output_layers
 
@@ -38,23 +42,26 @@ def draw_bbox(img, bbox, labels, confidence, colors=None, write_conf=False):
 
     if classes is None:
         classes = populate_class_labels()
-    
+
     for i, label in enumerate(labels):
 
         if colors is None:
-            color = COLORS[classes.index(label)]            
+            color = COLORS[classes.index(label)]
         else:
             color = colors[classes.index(label)]
 
         if write_conf:
             label += ' ' + str(format(confidence[i] * 100, '.2f')) + '%'
 
-        cv2.rectangle(img, (bbox[i][0],bbox[i][1]), (bbox[i][2],bbox[i][3]), color, 2)
+        cv2.rectangle(img, (bbox[i][0], bbox[i][1]),
+                      (bbox[i][2], bbox[i][3]), color, 2)
 
-        cv2.putText(img, label, (bbox[i][0],bbox[i][1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        cv2.putText(img, label, (bbox[i][0], bbox[i][1]-10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
     return img
-    
+
+
 def detect_common_objects(image, confidence=0.5, nms_thresh=0.3, model='yolov3', enable_gpu=False):
 
     Height, Width = image.shape[:2]
@@ -63,29 +70,23 @@ def detect_common_objects(image, confidence=0.5, nms_thresh=0.3, model='yolov3',
     global classes
     global dest_dir
 
-    if model == 'yolov3-tiny':
-        config_file_name = 'yolov3-tiny.cfg'
-        cfg_url = "https://github.com/pjreddie/darknet/raw/master/cfg/yolov3-tiny.cfg"
-        weights_file_name = 'yolov3-tiny.weights'
-        weights_url = 'https://pjreddie.com/media/files/yolov3-tiny.weights'
-        blob = cv2.dnn.blobFromImage(image, scale, (416,416), (0,0,0), True, crop=False)
-
-
-    else:
-        config_file_name = 'yolov3.cfg'
-        cfg_url = 'https://github.com/arunponnusamy/object-detection-opencv/raw/master/yolov3.cfg'
-        weights_file_name = 'yolov3.weights'
-        weights_url = 'https://pjreddie.com/media/files/yolov3.weights'
-        blob = cv2.dnn.blobFromImage(image, scale, (416,416), (0,0,0), True, crop=False)    
+    config_file_name = 'yolov3.cfg'
+    cfg_url = 'https://github.com/arunponnusamy/object-detection-opencv/raw/master/yolov3.cfg'
+    weights_file_name = 'yolov3.weights'
+    weights_url = 'https://pjreddie.com/media/files/yolov3.weights'
+    blob = cv2.dnn.blobFromImage(
+        image, scale, (416, 416), (0, 0, 0), True, crop=False)
 
     config_file_abs_path = dest_dir + os.path.sep + config_file_name
-    weights_file_abs_path = dest_dir + os.path.sep + weights_file_name    
-    
+    weights_file_abs_path = dest_dir + os.path.sep + weights_file_name
+
     if not os.path.exists(config_file_abs_path):
-        download_file(url=cfg_url, file_name=config_file_name, dest_dir=dest_dir)
+        src = "/config" + os.path.sep + config_file_name
+        shutil.copyfile(src, config_file_abs_path)
 
     if not os.path.exists(weights_file_abs_path):
-        download_file(url=weights_url, file_name=weights_file_name, dest_dir=dest_dir)    
+        src = "/config" + os.path.sep + weights_file_name
+        shutil.copyfile(src, weights_file_abs_path)
 
     global initialize
     global net
@@ -124,7 +125,6 @@ def detect_common_objects(image, confidence=0.5, nms_thresh=0.3, model='yolov3',
                 confidences.append(float(max_conf))
                 boxes.append([x, y, w, h])
 
-
     indices = cv2.dnn.NMSBoxes(boxes, confidences, confidence, nms_thresh)
 
     bbox = []
@@ -141,5 +141,5 @@ def detect_common_objects(image, confidence=0.5, nms_thresh=0.3, model='yolov3',
         bbox.append([round(x), round(y), round(x+w), round(y+h)])
         label.append(str(classes[class_ids[i]]))
         conf.append(confidences[i])
-        
+
     return bbox, label, conf
